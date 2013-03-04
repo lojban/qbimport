@@ -143,6 +143,22 @@ my @wf_alternatives = (
   },
   sub {
     my ($data) = @_;
+    if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ USPS / ) {
+      return ["a credit card postage purchase", $data, qb_trans($data, 'N', 'postage_main' ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
+    if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ (OPC )?VIRGINIA SCC / ) {
+      return ["the annual corporation filings, paid by credit card", $data, qb_trans($data, 'N', 'corp_main' ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
     if ($data->{'Description'} =~ m/^POS PURCHASE - USPS/ ) {
       return ["a credit card postage purchase", $data, qb_trans($data, 'N', 'postage_main' ) ];
     } else {
@@ -157,7 +173,7 @@ my @wf_alternatives = (
       $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
       my $amount=$data->{'Gross'};
       $amount =~ s/^ *-*//;
-      return ["a bill for our Amazon seller account", $data, qb_bill( $date, $amount, "Main Account", "6240 - Miscellaneous", 'Amazon.Com Seller Account', "Other Expense" ) ];
+      return ["a bill for our Amazon seller account", $data, qb_bill( $date, $amount, "Main Account", "Miscellaneous", 'Amazon.Com Seller Account', "Other Expense" ) ];
     } else {
       return;
     }
@@ -170,7 +186,7 @@ my @wf_alternatives = (
       $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
       my $amount=$data->{'Gross'};
       $amount =~ s/^ *-*//;
-      return ["a bill for our Lightning Source account", $data, qb_bill( $date, $amount, "Main Account", "6240 - Miscellaneous", 'Lightning Source', "Other Expense" ) ];
+      return ["a bill for our Lightning Source account", $data, qb_bill( $date, $amount, "Main Account", "Miscellaneous", 'Lightning Source', "Other Expense" ) ];
     } else {
       return;
     }
@@ -260,10 +276,10 @@ sub qb_bill {
 sub qb_trans {
   my ($data, $taxable, $type ) = @_;
 
-  my @transheaders = qw{!TRNS NAME AMOUNT NAMEISTAXABLE ACCNT FIRSTNAME LASTNAME DATE CLASS TRNSTYPE};
+  my @transheaders = qw{!TRNS MEMO NAME AMOUNT NAMEISTAXABLE ACCNT FIRSTNAME LASTNAME DATE CLASS TRNSTYPE};
   my $stuff = join("\t", @transheaders)."\n";
 
-  my @splheaders = qw{!SPL NAME AMOUNT TAXABLE ACCNT SPLID INVITEM QNTY PRICE EXTRA};
+  my @splheaders = qw{!SPL MEMO NAME AMOUNT TAXABLE ACCNT SPLID INVITEM QNTY PRICE EXTRA};
   $stuff .= join("\t", @splheaders)."\n";
 
   $stuff .= "!ENDTRNS\n";
@@ -289,6 +305,7 @@ sub qb_trans {
 
   if( $type eq 'donation' ) {
     $stuff .= join("\t", ( "TRNS",
+        "Donation",
         "$name_swapped",
         "$gross",
         "N",
@@ -300,6 +317,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Donation",
         "$name_swapped",
         "-$gross",
         "N",
@@ -312,6 +330,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Donation",
         "Virginia Dept of Taxation",
         "0.00",
         "N",
@@ -328,13 +347,14 @@ sub qb_trans {
     # Special Headers
     $stuff = '';
 
-    my @transheaders = qw{!TRNS TRNSTYPE DATE ACCNT AMOUNT NAMEISTAXABLE};
+    my @transheaders = qw{!TRNS MEMO TRNSTYPE DATE ACCNT AMOUNT NAMEISTAXABLE};
     $stuff .= join("\t", @transheaders)."\n";
 
-    my @splheaders = qw{!SPL TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
+    my @splheaders = qw{!SPL MEMO TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
     $stuff .= join("\t", ( "TRNS",
+        "Transferring PayPal Account to Main Account",
         "TRANSFER",
         "$date",
         "PayPal",
@@ -343,6 +363,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Transferring PayPal Account to Main Account",
         "TRANSFER",
         "$date",
         "Main Account",
@@ -356,13 +377,14 @@ sub qb_trans {
     # Special Headers
     $stuff = '';
 
-    my @transheaders = qw{!TRNS TRNSTYPE DATE ACCNT AMOUNT NAMEISTAXABLE};
+    my @transheaders = qw{!TRNS MEMO TRNSTYPE DATE ACCNT AMOUNT NAMEISTAXABLE};
     $stuff .= join("\t", @transheaders)."\n";
 
-    my @splheaders = qw{!SPL TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
+    my @splheaders = qw{!SPL MEMO TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
     $stuff .= join("\t", ( "TRNS",
+        "Transferring Main Account to PayPal Account",
         "TRANSFER",
         "$date",
         "Main Account",
@@ -371,6 +393,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Transferring Main Account to PayPal Account",
         "TRANSFER",
         "$date",
         "PayPal",
@@ -384,13 +407,14 @@ sub qb_trans {
     # Special Headers
     $stuff = '';
 
-    my @transheaders = qw{!TRNS TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT NAMEISTAXABLE};
+    my @transheaders = qw{!TRNS MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT NAMEISTAXABLE};
     $stuff = join("\t", @transheaders)."\n";
 
-    my @splheaders = qw{!SPL TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
+    my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
     $stuff .= join("\t", ( "TRNS",
+        "Postage Payment By Bob",
         "CHECK",
         "$date",
         "$date",
@@ -402,10 +426,47 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Postage Payment By Bob",
         "CHECK",
         "$date",
         "$date",
-        "6250 - Postage And Delivery",
+        "Postage and Delivery",
+        "LeChevalier, Robert",
+        "Lump Payment",
+        "$gross",
+        "N",  # No taxes on postage
+        "1",
+      ))."\n";
+
+    $stuff .= "ENDTRNS\n";
+  } elsif( $type eq 'corp_main' )  {
+    # Special Headers
+    $stuff = '';
+
+    my @transheaders = qw{!TRNS MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT NAMEISTAXABLE};
+    $stuff = join("\t", @transheaders)."\n";
+
+    my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
+    $stuff .= join("\t", @splheaders)."\n";
+
+    $stuff .= join("\t", ( "TRNS",
+        "Corporate Filing Payment By Bob",
+        "CHECK",
+        "$date",
+        "$date",
+        "Main Account",
+        "LeChevalier, Robert",
+        "Lump Payment",
+        "-$gross",
+        "N",  # No taxes on postage
+      ))."\n";
+
+    $stuff .= join("\t", ( "SPL",
+        "Corporate Filing Payment By Bob",
+        "CHECK",
+        "$date",
+        "$date",
+        "Licenses and Permits",
         "LeChevalier, Robert",
         "Lump Payment",
         "$gross",
@@ -418,13 +479,14 @@ sub qb_trans {
     # Special Headers
     $stuff = '';
 
-    my @transheaders = qw{!TRNS TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT NAMEISTAXABLE};
+    my @transheaders = qw{!TRNS MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT NAMEISTAXABLE};
     $stuff = join("\t", @transheaders)."\n";
 
-    my @splheaders = qw{!SPL TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
+    my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
     $stuff .= join("\t", ( "TRNS",
+        "Special-Case One-Time Payment",
         "CHECK",
         "$date",
         "$date",
@@ -436,10 +498,11 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "Special-Case One-Time Payment",
         "CHECK",
         "$date",
         "$date",
-        "6240 - Miscellaneous",
+        "Miscellaneous",
         "$name_swapped",
         "Lump Payment",
         "$gross",
@@ -471,6 +534,7 @@ sub qb_trans {
     }
 
     $stuff .= join("\t", ( "TRNS",
+        "CLL Purchase",
         "$name_swapped",
         "$gross",
         "$taxable",
@@ -483,6 +547,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "CLL Purchase",
         "$name_swapped",
         "-$sale_amount",
         "$taxable",
@@ -495,6 +560,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "CLL Purchase Postage",
         "",
         "-$postage",
         "N",  # Shipping/handling not taxable
@@ -507,6 +573,7 @@ sub qb_trans {
       ))."\n";
 
     $stuff .= join("\t", ( "SPL",
+        "CLL Purchase Tax",
         "Virginia Dept of Taxation",
         "-$tax_amount",
         "N",  # sales tax not taxable
@@ -528,7 +595,7 @@ sub qb_trans {
     $pp_fee =~ s/^ *-*//;
 
     if( $pp_fee > 0 ) {
-      $stuff .= qb_bill( $date, $pp_fee, "PayPal", "6240 - Miscellaneous", "PayPal", "PayPal Charges" );
+      $stuff .= qb_bill( $date, $pp_fee, "PayPal", "Miscellaneous", "PayPal", "PayPal Charges" );
     }
   }
 
