@@ -159,6 +159,14 @@ my @wf_alternatives = (
   },
   sub {
     my ($data) = @_;
+    if ($data->{'Description'} =~ m/^POS PURCHASE - Staples Inc FAIRFAX/ ) {
+      return ["a credit card postage purchase", $data, qb_trans($data, 'N', 'postage_main' ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
     if ($data->{'Description'} =~ m/^POS PURCHASE - USPS/ ) {
       return ["a credit card postage purchase", $data, qb_trans($data, 'N', 'postage_main' ) ];
     } else {
