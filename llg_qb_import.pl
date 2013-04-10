@@ -763,7 +763,7 @@ PPLOOP: foreach my $line (@pp_lines) {
     if (defined($interpretation)) {
       my ($type, $partial, $qbrecord) = @$interpretation;
 
-      my $prompt="\n\nI think that this: \n";
+      my $prompt="\n\nI think that this PAYPAL entry: \n";
       $prompt .= Dumper($partial);
       $prompt .= "is $type; do you agree? [y/n/c] ";
 
@@ -808,7 +808,7 @@ PPLOOP: foreach my $line (@wf_lines) {
     if (defined($interpretation)) {
       my ($type, $partial, $qbrecord) = @$interpretation;
 
-      my $prompt="\n\nI think that this: \n";
+      my $prompt="\n\nI think that this WELLS FARGO entry: \n";
       $prompt .= Dumper($partial);
       $prompt .= "is $type; do you agree? [y/n/c] ";
 
