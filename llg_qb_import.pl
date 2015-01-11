@@ -111,7 +111,7 @@ my @wf_alternatives = (
     # Transfers FROM the main account; handled on the paypal side
     my ($data) = @_;
     if ($data->{'Description'} =~ m/^PAYPAL ECHECK/ ) {
-      return ["some crap we should throw out", $data, '' ];
+      return ["a transfer from the main account to paypal, already handled on the paypal side", $data, '' ];
     } else {
       return;
     }
@@ -120,7 +120,7 @@ my @wf_alternatives = (
     # Transfers TO the main account; handled on the paypal side
     my ($data) = @_;
     if ($data->{'Description'} =~ m/^PAYPAL TRANSFER/ ) {
-      return ["some crap we should throw out", $data, '' ];
+      return ["a transfer from paypal to the main account, already handled on the paypal side", $data, '' ];
     } else {
       return;
     }
@@ -412,6 +412,18 @@ sub qb_trans {
 
     $stuff .= "ENDTRNS\n";
   } elsif( $type eq 'postage_main' )  {
+    # This is used for the case where the LLG spends money through
+    # Bob, like Bob uses a credit card, or takes LLG money out later
+    # to make up for money he spent.  As such, we *have paid out the
+    # money*.  Since Bob's balance records money we *owe*, these
+    # transactions do not affect it, since we don't owe him
+    # anything, having already paid.  If you wanted something like
+    # this that *did* affect his balance (i.e. he pays for something
+    # and we *haven't* paid him back yet, or paying out his
+    # balance), well, you should probably do that by hand, but try
+    # "Accounts Receivable" as the account if you want to do it as a
+    # check like this.
+
     # Special Headers
     $stuff = '';
 
@@ -448,6 +460,9 @@ sub qb_trans {
 
     $stuff .= "ENDTRNS\n";
   } elsif( $type eq 'corp_main' )  {
+    # See postage_main for notes on why this doesn't affect bob's
+    # balance
+
     # Special Headers
     $stuff = '';
 
