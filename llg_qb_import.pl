@@ -15,6 +15,13 @@ use List::MoreUtils qw{ zip };
 
 my $CLL_PRICE = 25.00;
 
+# Massage dates From: MM/DD/YYYY To: MM/DD/YY
+sub format_date {
+  my $date = shift;
+  die "bad date: $date" unless $date =~ m{(\d{1,2})\/(\d{1,2})\/(\d{2})(\d{2})};
+  sprintf("%0.2d/%0.2d/%0.2d", $1, $2, $4);
+}
+
 #**************************************
 # BEGIN Declarations
 #**************************************
@@ -74,7 +81,7 @@ my @pp_alternatives = (
   },
   sub {
     my ($data) = @_;
-    if ($data->{'Type'} eq 'Withdraw Funds to a Bank Account') {
+    if ($data->{'Type'} =~ /Withdraw Funds to (a )?Bank Account/) {
       my %temp;
       @temp{'Date', 'Type', 'Gross'} = @{$data}{'Date', 'Type', 'Gross'};
       return ["a transfer from the paypal account to the main account", \%temp, qb_trans($data, 'N', 'paypal_to_main' ) ];
@@ -177,8 +184,8 @@ my @wf_alternatives = (
     my ($data) = @_;
     if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ AMAZON MKTPLACE PM AMZN.COM.BILL/ ) {
       my $date=$data->{'Date'};
-      # Massage dates From: MM/DD/YYYY To: YYYY/MM/DD
-      $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
+      $date = format_date($date);
+
       my $amount=$data->{'Gross'};
       $amount =~ s/^ *-*//;
       return ["a bill for our Amazon seller account", $data, qb_bill( $date, $amount, "Main Account", "Miscellaneous", 'Amazon.Com Seller Account', "Other Expense" ) ];
@@ -190,8 +197,8 @@ my @wf_alternatives = (
     my ($data) = @_;
     if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ LIGHTNING SOURCE/ ) {
       my $date=$data->{'Date'};
-      # Massage dates From: MM/DD/YYYY To: YYYY/MM/DD
-      $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
+      $date = format_date($date);
+
       my $amount=$data->{'Gross'};
       $amount =~ s/^ *-*//;
       return ["a bill for our Lightning Source account", $data, qb_bill( $date, $amount, "Main Account", "Miscellaneous", 'Lightning Source', "Other Expense" ) ];
@@ -205,8 +212,8 @@ sub qb_direct_main {
   my ($data, $customer) = @_;
 
   my $date=$data->{'Date'};
-  # Massage dates From: MM/DD/YYYY To: YYYY/MM/DD
-  $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
+  $date = format_date($date);
+
   my $amount=$data->{'Gross'};
   $amount =~ s/^ *-*//;
 
@@ -216,6 +223,7 @@ sub qb_direct_main {
   my @splheaders = qw{!SPL TRNSTYPE DATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
   $stuff .= join("\t", @splheaders)."\n";
 
+  $stuff .= "!ENDTRNS\n";
 
   $stuff .= join("\t", ( "TRNS",
       "DEPOSIT",
@@ -252,6 +260,7 @@ sub qb_bill {
   my @splheaders = qw{!SPL TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
   $stuff .= join("\t", @splheaders)."\n";
 
+  $stuff .= "!ENDTRNS\n";
 
   $stuff .= join("\t", ( "TRNS",
       "CHECK",
@@ -306,8 +315,8 @@ sub qb_trans {
   }
 
   my $date=$data->{'Date'};
-  # Massage dates From: MM/DD/YYYY To: YYYY/MM/DD
-  $date =~ s{([0-9]+)/([0-9]+)/([0-9]+)}{$3/$1/$2};
+  $date = format_date($date);
+
   my $gross=$data->{'Gross'};
   $gross =~ s/^ *-*//;
 
@@ -361,6 +370,8 @@ sub qb_trans {
     my @splheaders = qw{!SPL MEMO TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
+    $stuff .= "!ENDTRNS\n";
+
     $stuff .= join("\t", ( "TRNS",
         "Transferring PayPal Account to Main Account",
         "TRANSFER",
@@ -390,6 +401,8 @@ sub qb_trans {
 
     my @splheaders = qw{!SPL MEMO TRNSTYPE DATE ACCNT AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
+
+    $stuff .= "!ENDTRNS\n";
 
     $stuff .= join("\t", ( "TRNS",
         "Transferring Main Account to PayPal Account",
@@ -433,6 +446,8 @@ sub qb_trans {
     my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
+    $stuff .= "!ENDTRNS\n";
+
     $stuff .= join("\t", ( "TRNS",
         "Postage Payment By Bob",
         "CHECK",
@@ -472,6 +487,8 @@ sub qb_trans {
     my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
 
+    $stuff .= "!ENDTRNS\n";
+
     $stuff .= join("\t", ( "TRNS",
         "Corporate Filing Payment By Bob",
         "CHECK",
@@ -507,6 +524,8 @@ sub qb_trans {
 
     my @splheaders = qw{!SPL MEMO TRNSTYPE DATE DUEDATE ACCNT NAME CLASS AMOUNT TAXABLE SPLID};
     $stuff .= join("\t", @splheaders)."\n";
+
+    $stuff .= "!ENDTRNS\n";
 
     $stuff .= join("\t", ( "TRNS",
         "Special-Case One-Time Payment",
@@ -735,6 +754,7 @@ my ($accepted, $qb, @failed, @header);
 my $paypal_raw = read_file( $paypal_filename, { binmode => ':raw' } )  or die "Trying to open $paypal_filename: $!";
 
 $paypal_raw =~ s/[^[:ascii:]]//g;
+$paypal_raw =~ s/"0/" 0/g; # Text::CSV includes '",0' in preceding column
 
 my @pp_lines=split(/[\r\n]+/,$paypal_raw);
 
@@ -748,6 +768,7 @@ $csv->parse($header);
 PPLOOP: foreach my $line (@pp_lines) {
   $csv->parse($line);
   my @lfields = $csv->fields();
+  map { s/^ 0/0/ } @lfields;
   my %line = zip @header, @lfields;
 
   # Remove stuff we probably don't care about, even in theory.
@@ -812,6 +833,7 @@ PPLOOP: foreach my $line (@pp_lines) {
 my $wf_raw = read_file( $wf_filename, { binmode => ':raw' } )  or die "Trying to open $wf_filename: $!";
 
 $wf_raw =~ s/[^[:ascii:]]//g;
+$wf_raw =~ s/"0/" 0/g;
 
 my @wf_lines=split(/[\r\n]+/,$wf_raw);
 
@@ -820,6 +842,7 @@ my @wf_lines=split(/[\r\n]+/,$wf_raw);
 PPLOOP: foreach my $line (@wf_lines) {
   $csv->parse($line);
   my @lfields = $csv->fields();
+  map { s/^ 0/0/ } @lfields;
   my %line = zip @header, @lfields;
 
   # Remove stuff we probably don't care about, even in theory.
