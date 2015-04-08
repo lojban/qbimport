@@ -158,8 +158,24 @@ my @wf_alternatives = (
   },
   sub {
     my ($data) = @_;
+    if ($data->{'Description'} =~ m/^PURCHASE AUTHORIZED ON \S+ USPS / ) {
+      return ["a credit card postage purchase", $data, qb_trans($data, 'N', 'postage_main' ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
     if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ (OPC )?VIRGINIA SCC / ) {
       return ["the annual corporation filings, paid by credit card", $data, qb_trans($data, 'N', 'corp_main' ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
+    if ($data->{'Description'} =~ m/^VA DEPT TAXATION TAX PAY/ ) {
+      return ["Virginia sales tax filings, paid by debit", $data, qb_trans($data, 'N', 'corp_main' ) ];
     } else {
       return;
     }
@@ -196,6 +212,19 @@ my @wf_alternatives = (
   sub {
     my ($data) = @_;
     if ($data->{'Description'} =~ m/^CHECK CRD PURCHASE \S+ LIGHTNING SOURCE/ ) {
+      my $date=$data->{'Date'};
+      $date = format_date($date);
+
+      my $amount=$data->{'Gross'};
+      $amount =~ s/^ *-*//;
+      return ["a bill for our Lightning Source account", $data, qb_bill( $date, $amount, "Main Account", "Miscellaneous", 'Lightning Source', "Other Expense" ) ];
+    } else {
+      return;
+    }
+  },
+  sub {
+    my ($data) = @_;
+    if ($data->{'Description'} =~ m/^PURCHASE AUTHORIZED ON \S+ LIGHTNING SOURCE/ ) {
       my $date=$data->{'Date'};
       $date = format_date($date);
 
